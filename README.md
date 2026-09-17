@@ -32,7 +32,9 @@ The watermark is `(filled_at, fill_id)`, which gives deterministic incremental e
 
 ## Linux warehouse PostgreSQL
 
-The Neueda Linux VM already has PostgreSQL exposed on 5432. The demo warehouse should therefore use a separate container and host port 55433:
+The Neueda Linux VM already has PostgreSQL exposed on 5432. The demo warehouse therefore uses a separate PostgreSQL 18 container and host port 55433.
+
+PostgreSQL 18+ Docker images should mount the parent `/var/lib/postgresql` directory rather than the older `/var/lib/postgresql/data` path:
 
 ```bash
 docker run -d \
@@ -42,16 +44,30 @@ docker run -d \
   -e POSTGRES_USER=trading_dw \
   -e POSTGRES_PASSWORD=trading_dw_change_me \
   -p 55433:5432 \
-  -v trading-dw-data:/var/lib/postgresql/data \
+  -v trading-dw-data:/var/lib/postgresql \
   postgres:18
 ```
 
-Initialize it after cloning this repository:
+The Linux host does not need `psql` installed. Initialize the warehouse using the client included in the container, from the cloned repository directory:
 
 ```bash
-PGPASSWORD=trading_dw_change_me psql \
-  -h localhost -p 55433 -U trading_dw -d trading_dw \
-  -f sql/001_create_warehouse.sql
+docker exec -i trading-dw-postgres \
+  psql -U trading_dw -d trading_dw \
+  < sql/001_create_warehouse.sql
+```
+
+Inspect it with:
+
+```bash
+docker exec -it trading-dw-postgres \
+  psql -U trading_dw -d trading_dw
+```
+
+Then in `psql`:
+
+```sql
+\dt dw.*
+SELECT * FROM dw.etl_watermark;
 ```
 
 ## ETL configuration
